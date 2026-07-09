@@ -19,6 +19,10 @@ const configSchema = z.object({
   GCP_PROCESSOR_ID: z.string(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string(),
   LIBRE_OFFICE_EXE: z.string().optional(),
+  CLIENT_URL: z
+    .string()
+    .optional()
+    .transform((val) => (val ? val.split(',').map((url) => url.trim()) : [])),
 })
 
 const configServer = configSchema.safeParse(process.env)
