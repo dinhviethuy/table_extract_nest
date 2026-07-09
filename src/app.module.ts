@@ -2,14 +2,14 @@ import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { ExtractModule } from './routes/extract/extract.module'
+import { ExtractTablesModule } from './routes/extract-tables/extract-tables.module'
 import { ExportExcelModule } from './routes/export-excel/export-excel.module'
 import { CustomZodSerializerInterceptor } from './shared/interceptor/custom-zod-serializer.interceptor'
 import CustomZodValidationPipe from './shared/pipes/custom-zod-validation.pipe'
 import { SharedModule } from './shared/share.module'
 
 @Module({
-  imports: [SharedModule, ExtractModule, ExportExcelModule],
+  imports: [SharedModule, ExtractTablesModule, ExportExcelModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -6,10 +6,10 @@ import sharp from 'sharp'
 import { v4 as uuidv4 } from 'uuid'
 import { DocumentAiService } from '../../shared/services/document-ai.service'
 import { convertToPdf } from '../../shared/utils/helper'
-import { ExtractionResponseSchemaType } from './extract.schema'
+import { ExtractionResponseSchemaType } from './extract-tables.schema'
 
 @Injectable()
-export class ExtractService {
+export class ExtractTablesService {
   constructor(private readonly documentAiService: DocumentAiService) {}
   private async processFile(file: Express.Multer.File) {
     const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
@@ -46,7 +46,6 @@ export class ExtractService {
       const pagesPdfBytes: Buffer[] = []
       let totalPages = 0
       if (ext === 'pdf') {
-        // Cắt PDF thành từng trang
         const pdf = await PDFDocument.load(fileBuffer)
         totalPages = pdf.getPageCount()
         for (let i = 0; i < totalPages; i++) {
@@ -58,7 +57,6 @@ export class ExtractService {
         }
       } else if (['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff'].includes(ext)) {
         totalPages = 1
-        // Chuyển ảnh -> PDF
         const image = sharp(fileBuffer)
         const metadata = await image.metadata()
         const width = metadata.width ?? 600

@@ -1,5 +1,5 @@
 import { createZodDto } from 'nestjs-zod'
-import { CellSchema, ExtractionResponseSchema, PageSchema, RowSchema, TableSchema } from './extract.schema'
+import { CellSchema, ExtractionResponseSchema, PageSchema, RowSchema, TableSchema } from './extract-tables.schema'
 
 export class ExtractionResponseDto extends createZodDto(ExtractionResponseSchema) {}
 export class PageDto extends createZodDto(PageSchema) {}

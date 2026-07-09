@@ -1,7 +1,7 @@
 import { DocumentProcessorServiceClient, protos } from '@google-cloud/documentai'
 
 import { Injectable } from '@nestjs/common'
-import { CellSchemaType, PageSchemaType, RowSchemaType, TableSchemaType } from '../../routes/extract/extract.schema'
+import { CellSchemaType, PageSchemaType, RowSchemaType, TableSchemaType } from '../../routes/extract-tables/extract-tables.schema'
 import envConfig from '../configs/env'
 
 @Injectable()

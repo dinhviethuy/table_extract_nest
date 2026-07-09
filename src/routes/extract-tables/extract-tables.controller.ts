@@ -9,14 +9,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common'
 import { FilesInterceptor } from '@nestjs/platform-express'
+import { ExtractTablesService } from './extract-tables.service'
 import { ZodSerializerDto } from 'nestjs-zod'
+import { ExtractionResponseSchema } from './extract-tables.schema'
 import { ParseFilePipeWithUnlink } from 'src/shared/pipes/parse-file-pipe-with-unlink.pipe'
-import { ExtractionResponseSchema } from './extract.schema'
-import { ExtractService } from './extract.service'
 
-@Controller('extract')
-export class ExtractController {
-  constructor(private readonly extractService: ExtractService) {}
+@Controller('api/v1/extract-tables')
+export class ExtractTablesController {
+  constructor(private readonly extractService: ExtractTablesService) {}
 
   @Post()
   @UseInterceptors(FilesInterceptor('file'))
@@ -27,7 +27,7 @@ export class ExtractController {
       new ParseFilePipeWithUnlink({
         validators: [
           new MaxFileSizeValidator({ maxSize: 1 * 1024 * 1024 }), // 1MB
-          new FileTypeValidator({ fileType: /\.(jpg|jpeg|png|webp|pdf|doc|docx)$/i }), // chỉ cho phép các định dạng này
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }), // chỉ cho phép các định dạng này
         ],
       }),
     )
