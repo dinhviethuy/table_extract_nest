@@ -7,16 +7,16 @@ import {
   Post,
   UploadedFiles,
   UseInterceptors,
-} from '@nestjs/common'
-import { FilesInterceptor } from '@nestjs/platform-express'
-import { ExtractTablesService } from './extract-tables.service'
-import { ZodSerializerDto } from 'nestjs-zod'
-import { ExtractionResponseSchema } from './extract-tables.schema'
-import { ParseFilePipeWithUnlink } from 'src/shared/pipes/parse-file-pipe-with-unlink.pipe'
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { ZodSerializerDto } from 'nestjs-zod';
+import { ParseFilePipeWithUnlink } from 'src/shared/pipes/parse-file-pipe-with-unlink.pipe';
+import { ExtractionResponseSchema } from './extract-tables.schema';
+import { ExtractTablesService } from './extract-tables.service';
 
-@Controller('api/v1/extract-tables')
+@Controller('extract-tables')
 export class ExtractTablesController {
-  constructor(private readonly extractService: ExtractTablesService) {}
+  constructor(private readonly extractService: ExtractTablesService) { }
 
   @Post()
   @UseInterceptors(FilesInterceptor('file'))

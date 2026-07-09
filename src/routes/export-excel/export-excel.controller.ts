@@ -1,11 +1,11 @@
-import { Controller, Post, Body, Res, HttpStatus, HttpException } from '@nestjs/common'
-import * as express from 'express'
-import { ExportExcelService } from './export-excel.service'
-import { ExportRequestDto } from './export-excel.dto'
+import { Body, Controller, HttpException, HttpStatus, Post, Res } from '@nestjs/common';
+import * as express from 'express';
+import { ExportRequestDto } from './export-excel.dto';
+import { ExportExcelService } from './export-excel.service';
 
-@Controller('api/export-excel')
+@Controller('export-excel')
 export class ExportExcelController {
-  constructor(private readonly excelExporterService: ExportExcelService) {}
+  constructor(private readonly excelExporterService: ExportExcelService) { }
 
   @Post()
   async exportExcel(@Body() body: ExportRequestDto, @Res() res: express.Response) {
