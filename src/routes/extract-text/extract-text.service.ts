@@ -95,7 +95,7 @@ export class ExtractTextService {
         // Enqueue to process queue directly
         await this.processQueue.add('ocr-process-job', jobData, {
           jobId,
-          attempts: envConfig.OCR_RETRY_ATTEMPTS,
+          attempts: envConfig.JOB_RETRY_ATTEMPTS,
           backoff: {
             type: 'exponential',
             delay: 5000,

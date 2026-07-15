@@ -207,7 +207,7 @@ export class ProcessProcessor extends WorkerHost {
 
       // 5. Đẩy hàng đợi dọn dẹp workspace sau một khoảng thời gian chờ (TTL)
       await this.cleanupQueue.add('ocr-cleanup-job', { jobId: currentJobId }, {
-        delay: envConfig.OCR_CLEANUP_TTL_MS,
+        delay: envConfig.JOB_CLEANUP_TTL_MS,
         attempts: 10,
         backoff: {
           type: 'exponential',
@@ -231,7 +231,7 @@ export class ProcessProcessor extends WorkerHost {
     })()
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('OCR_JOB_TIMEOUT')), envConfig.OCR_JOB_TIMEOUT)
+      setTimeout(() => reject(new Error('JOB_TIMEOUT')), envConfig.JOB_TIMEOUT)
     )
 
     try {
@@ -290,7 +290,7 @@ export class ProcessProcessor extends WorkerHost {
     pageNum: number,
   ): Promise<{ text: string; confidence: number }> {
     let attempt = 0
-    const maxAttempts = envConfig.OCR_RETRY_ATTEMPTS
+    const maxAttempts = envConfig.JOB_RETRY_ATTEMPTS
     const baseDelay = 1000
 
     while (true) {

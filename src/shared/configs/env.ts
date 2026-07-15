@@ -31,9 +31,9 @@ const configSchema = z.object({
   LIBREOFFICE_CONCURRENCY: z.coerce.number().default(1),
   MAX_PDF_PAGES: z.coerce.number().default(200),
   TEMP_DIRECTORY: z.string().default('uploads'),
-  OCR_JOB_TIMEOUT: z.coerce.number().default(1800000), // 30 mins
-  OCR_RETRY_ATTEMPTS: z.coerce.number().default(3),
-  OCR_CLEANUP_TTL_MS: z.coerce.number().default(3600000), // 1 hour
+  JOB_TIMEOUT: z.coerce.number().default(1800000), // 30 mins
+  JOB_RETRY_ATTEMPTS: z.coerce.number().default(3),
+  JOB_CLEANUP_TTL_MS: z.coerce.number().default(3600000), // 1 hour
 })
 
 const configServer = configSchema.safeParse(process.env)

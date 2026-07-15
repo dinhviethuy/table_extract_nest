@@ -80,7 +80,7 @@ export class ConvertProcessor extends WorkerHost {
         mimeType: 'application/pdf',
       }, {
         jobId: currentJobId,
-        attempts: envConfig.OCR_RETRY_ATTEMPTS,
+        attempts: envConfig.JOB_RETRY_ATTEMPTS,
         backoff: {
           type: 'exponential',
           delay: 5000,
@@ -102,7 +102,7 @@ export class ConvertProcessor extends WorkerHost {
     })()
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('OCR_JOB_TIMEOUT')), envConfig.OCR_JOB_TIMEOUT)
+      setTimeout(() => reject(new Error('JOB_TIMEOUT')), envConfig.JOB_TIMEOUT)
     )
 
     try {

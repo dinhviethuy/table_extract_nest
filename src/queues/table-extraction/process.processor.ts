@@ -210,7 +210,7 @@ export class TableProcessProcessor extends WorkerHost {
       this.logger.log(`[Job ${currentJobId}] Trích xuất bảng thành công. Đang lập lịch dọn dẹp workspace.`)
 
       await this.cleanupQueue.add('table-cleanup-job', { jobId: currentJobId }, {
-        delay: envConfig.OCR_CLEANUP_TTL_MS,
+        delay: envConfig.JOB_CLEANUP_TTL_MS,
         attempts: 10,
         backoff: {
           type: 'exponential',
@@ -233,7 +233,7 @@ export class TableProcessProcessor extends WorkerHost {
     })()
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('OCR_JOB_TIMEOUT')), envConfig.OCR_JOB_TIMEOUT)
+      setTimeout(() => reject(new Error('JOB_TIMEOUT')), envConfig.JOB_TIMEOUT)
     )
 
     try {

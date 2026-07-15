@@ -94,7 +94,7 @@ export class ExtractTablesService {
       } else {
         await this.processQueue.add('table-process-job', jobData, {
           jobId,
-          attempts: envConfig.OCR_RETRY_ATTEMPTS,
+          attempts: envConfig.JOB_RETRY_ATTEMPTS,
           backoff: {
             type: 'exponential',
             delay: 5000,
