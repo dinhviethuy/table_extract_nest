@@ -14,8 +14,8 @@ export class ConcurrencyService {
     // Default max concurrent calls to Google APIs globally is 10
     this.globalLimiter = pLimit(10)
     
-    // Page concurrency limit (default 5 concurrent pages per document)
-    this.pageLimiter = pLimit(envConfig.VISION_API_PAGE_CONCURRENCY)
+    // Page concurrency limit
+    this.pageLimiter = pLimit(envConfig.VISION_CONCURRENCY)
   }
 
   /**

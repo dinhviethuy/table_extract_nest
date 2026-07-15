@@ -25,9 +25,6 @@ const configSchema = z.object({
     .transform((val) => (val ? val.split(',').map((url) => url.trim()) : [])),
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().default(6379),
-  OCR_WORKER_CONCURRENCY: z.coerce.number().default(3),
-  OCR_MAX_RETRIES: z.coerce.number().default(3),
-  VISION_API_PAGE_CONCURRENCY: z.coerce.number().default(5),
   MAX_UPLOAD_SIZE: z.coerce.number().default(52428800), // 50MB
   VISION_CONCURRENCY: z.coerce.number().default(5),
   PROCESS_WORKER_CONCURRENCY: z.coerce.number().default(3),
