@@ -106,12 +106,12 @@ export class JobStoreService {
       if (!ocrStatus && !tableStatus) {
         await this.saveOcrJobStatus(jobId, {
           status: JobState.CANCELLED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           cancellationFlag: true,
         })
         await this.saveTableJobStatusMeta(jobId, {
           status: JobState.CANCELLED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           cancellationFlag: true,
         })
       }

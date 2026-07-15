@@ -52,7 +52,7 @@ export class ProcessProcessor extends WorkerHost {
         }
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: newState,
-          progress: progress || current?.progress || { completed: 0, total: 100 },
+          progress: progress || current?.progress || { completed: 0, total: 0 },
           cancellationFlag: false,
           createdAt: current?.createdAt,
         })
@@ -243,14 +243,14 @@ export class ProcessProcessor extends WorkerHost {
         this.logger.warn(`[Job ${currentJobId}] Tác vụ đã được huỷ bỏ chủ động từ người dùng.`)
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: JobState.CANCELLED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           cancellationFlag: true,
         }).catch(() => {})
       } else {
         this.logger.error(`[Job ${currentJobId}] Tác vụ OCR thất bại`, err)
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: JobState.FAILED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           failedReason: err.message || String(err),
         }).catch(() => {})
       }

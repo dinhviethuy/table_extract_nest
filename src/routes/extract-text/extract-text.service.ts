@@ -77,7 +77,7 @@ export class ExtractTextService {
       // Initialize status in Redis
       await this.jobStoreService.saveOcrJobStatus(jobId, {
         status: JobState.QUEUED,
-        progress: { completed: 0, total: 100 },
+        progress: { completed: 0, total: 0 },
         createdAt: new Date().toISOString(),
       })
 

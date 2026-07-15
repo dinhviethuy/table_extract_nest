@@ -125,3 +125,71 @@ sequenceDiagram
    - Xoá sạch toàn bộ thư mục workspace `uploads/<jobId>/` (chứa file gốc, tệp PDF trung gian, các trang đơn lẻ).
    - Tệp kết quả cuối cùng tại `uploads/results/<jobId>.jsonl` vẫn được giữ lại để người dùng tải xuống hoặc xem trực tuyến.
    - Tác vụ dọn dẹp được thiết kế có tính idempotent (nếu thư mục đã được xoá trước đó do lỗi/huỷ, tiến trình sẽ kết thúc thành công mà không ném ra lỗi).
+
+---
+
+### Giai Đoạn 6: Tương Tác Giữa Frontend & Backend (FE-BE Interaction)
+
+Dưới đây là cách mà Frontend kết hợp cùng các API Backend để hiển thị kết quả thời gian thực:
+
+1. **Khởi động Tiến trình (Trigger)**:
+   - FE gửi tệp dữ liệu lên qua API `POST /extract-tables` hoặc `POST /extract-text`.
+   - BE phản hồi ngay lập tức mã `200 OK` kèm theo `batchId` và danh sách các `jobId` đang ở trạng thái `waiting`. FE chuyển giao diện sang màn hình theo dõi (Workspace).
+
+2. **Theo dõi Tiến độ Thời gian thực (Real-time Stream)**:
+   - FE mở một kết nối Server-Sent Events (SSE) đến địa chỉ:
+     `GET /extract-tables/:batchId/stream` hoặc `GET /extract-text/:batchId/stream`
+   - **BE xử lý emit**: Controller sử dụng `@Sse()` decorator để trả về một RxJS `Observable`. Định kỳ mỗi 2 giây, service thăm dò Redis và gọi `subscriber.next({ data: { type, ... } })`:
+     ```typescript
+     // Backend NestJS Controller
+     @Sse(':batchId/stream')
+     streamProgress(@Param('batchId') batchId: string) {
+       return this.extractTablesService.streamBatchProgress(batchId);
+     }
+     
+     // Backend NestJS Service (RxJS Observable)
+     streamBatchProgress(batchId: string): Observable<any> {
+       return new Observable((subscriber) => {
+         const intervalId = setInterval(async () => {
+           // Đọc dữ liệu tiến độ từ Redis
+           const status = await this.getTableJobStatus(jobId);
+           // Phát sự kiện đi (Emit)
+           subscriber.next({
+             data: { type: 'progress', completed: status.progress.completed, total: status.progress.total }
+           });
+           if (hoan_thanh_tat_ca) {
+             subscriber.next({ data: { type: 'batch_done' } });
+             subscriber.complete(); // Đóng stream
+           }
+         }, 2000);
+         return () => clearInterval(intervalId); // Tự động dọn dẹp khi ngắt kết nối
+       });
+     }
+     ```
+   - **FE nhận và xử lý (Consume)**: FE sử dụng API Native `EventSource` của trình duyệt để lắng nghe sự kiện phát ra từ BE:
+     ```javascript
+     const eventSource = new EventSource(`http://localhost:3000/extract-tables/${batchId}/stream`);
+     eventSource.onmessage = (event) => {
+       const message = JSON.parse(event.data);
+       if (message.type === 'progress') {
+         // Cập nhật thanh tiến trình % tương ứng trên UI
+         updateProgress(message.fileIndex, message.completed, message.total);
+       } else if (message.type === 'batch_done') {
+         eventSource.close(); // Đóng kết nối an toàn khi hoàn thành
+       }
+     };
+     ```
+   - FE nhận sự kiện SSE, cập nhật giao diện thanh tiến trình (progress bar) tương ứng với từng file.
+
+3. **Huỷ Tác vụ Chủ động (Action Cancel)**:
+   - Trong lúc các file đang chờ (`waiting`) hoặc đang chạy (`active`), người dùng có thể bấm nút **🚫 Huỷ tác vụ** trên FE.
+   - FE gửi yêu cầu `POST /jobs/:id/cancel` đến BE.
+   - BE cập nhật cờ huỷ trong Redis. Các worker ngầm phát hiện cờ huỷ sẽ dừng lập tức, dọn dẹp file tạm, và thông báo trạng thái `failed` / `cancelled` cho FE thông qua luồng SSE đang mở.
+
+4. **Tải dữ liệu Phân trang (Lazy Loading Results)**:
+   - Khi luồng SSE phát đi sự kiện `batch_done` hoặc file chuyển sang trạng thái `completed`, FE sẽ tiến hành lấy danh sách trang có chứa kết quả thông qua API:
+     `GET /extract-tables/:batchId/files/:fileIndex` (Phân trang kết quả bảng nhẹ)
+   - Do tệp kết quả rất nặng và đã được lưu ngoài Redis dưới dạng tệp JSONL trên ổ đĩa, FE không tải toàn bộ cấu trúc bảng/văn bản của tất cả các trang về cùng một lúc.
+   - Khi người dùng lướt qua hoặc chọn một trang cụ thể (ví dụ: Trang 2), FE sẽ gọi API Lazy Load:
+     `GET /extract-tables/:batchId/files/:fileIndex/pages/2`
+   - BE nhận yêu cầu, mở tệp JSONL của Job, dùng thư viện để đọc duy nhất dòng tương ứng với trang 2, trả về nội dung bảng và đóng tệp ngay lập tức. Điều này giúp tối ưu hóa băng thông truyền tải và dung lượng RAM của cả Client lẫn Server.

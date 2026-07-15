@@ -48,7 +48,7 @@ export class ConvertProcessor extends WorkerHost {
         }
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: newState,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           cancellationFlag: false,
           createdAt: current?.createdAt,
         })
@@ -115,13 +115,13 @@ export class ConvertProcessor extends WorkerHost {
       if (isCancellation) {
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: JobState.CANCELLED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           cancellationFlag: true,
         }).catch(() => {})
       } else {
         await this.jobStoreService.saveOcrJobStatus(currentJobId, {
           status: JobState.FAILED,
-          progress: { completed: 0, total: 100 },
+          progress: { completed: 0, total: 0 },
           failedReason: err.message || String(err),
         }).catch(() => {})
       }
