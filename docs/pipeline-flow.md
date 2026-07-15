@@ -20,11 +20,16 @@ sequenceDiagram
 
     Client->>API: POST /extract-tables (Tải file lên)
     Note over API: 1. Tạo batchId & jobId<br/>2. Di chuyển file vào uploads/<jobId>/<br/>3. Khởi tạo status=QUEUED ở Redis
+    API-->>Client: Phản hồi nhanh: 200 OK (Trả về batchId)
+
+    Client->>API: GET /extract-tables/:batchId/stream (Mở kết nối SSE)
+    API-->>Client: Phản hồi: Connection: keep-alive (Giữ kết nối SSE)
     
     alt Tệp Word (.docx)
         API->>Redis: Thêm job vào ocr-convert / table-convert
         Redis->>Convert: Nhận job convert
         Note over Convert: 4. Cập nhật status=CONVERTING
+        Convert->>Redis: Lưu status=CONVERTING vào Redis
         Convert->>Disk: Chạy LibreOffice -> xuất original.pdf
         Convert->>Redis: Thêm PDF job vào ocr-process / table-process
     else Tệp PDF hoặc Ảnh
@@ -33,8 +38,10 @@ sequenceDiagram
 
     Redis->>Process: Nhận job process
     Note over Process: 5. Cập nhật status=SPLITTING
+    Process->>Redis: Lưu status=SPLITTING vào Redis
     Process->>Disk: Tách PDF thành các trang đơn lẻ (PNG / PDF)
     Note over Process: 6. Cập nhật status=PROCESSING
+    Process->>Redis: Lưu status=PROCESSING vào Redis
     
     loop Cho từng trang (Giới hạn VISION_CONCURRENCY)
         Process->>Redis: Kiểm tra cờ huỷ (cancellationFlag)
@@ -45,13 +52,25 @@ sequenceDiagram
     end
 
     Note over Process: 7. Cập nhật status=SAVING_RESULTS
+    Process->>Redis: Lưu status=SAVING_RESULTS vào Redis
     Process->>Disk: Thăng hạng (promote) đổi tên tệp JSONL nguyên tử
     Note over Process: 8. Cập nhật status=COMPLETED
+    Process->>Redis: Lưu status=COMPLETED vào Redis
     Process->>Redis: Lên lịch hàng đợi dọn dẹp (sau trễ TTL)
 
     Note over Cleanup: 9. Xoá thư mục tạm uploads/<jobId>/
-    Client->>API: GET /stream (SSE) hoặc GET /pages/:num (Đọc JSONL từng dòng)
-    API-->>Client: Trả về kết quả phân trang nhẹ
+
+    par Luồng Gửi Nhận SSE (Event Loop ngầm)
+        loop Định kỳ mỗi 2 giây
+            API->>Redis: Thăm dò (Poll) trạng thái của batchId
+            Redis-->>API: Trả về trạng thái & tiến trình các file
+            API->>Client: Phát tán (Emit) SSE event: progress / file_done / batch_done
+        end
+    end
+
+    Client->>API: GET /extract-tables/:batchId/files/:fileIndex/pages/:pageNum (Lazy Load kết quả)
+    API->>Disk: Đọc duy nhất dòng tương ứng trong tệp JSONL
+    API-->>Client: Trả về nội dung bảng / văn bản của trang được yêu cầu
 ```
 
 ---
