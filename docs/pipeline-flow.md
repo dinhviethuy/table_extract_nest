@@ -185,19 +185,22 @@ Dưới đây là cách mà Frontend kết hợp cùng các API Backend để hi
        });
      }
      ```
-   - **FE nhận và xử lý (Consume)**: FE sử dụng API Native `EventSource` của trình duyệt để lắng nghe sự kiện phát ra từ BE:
-     ```javascript
-     const eventSource = new EventSource(`http://localhost:3000/extract-tables/${batchId}/stream`);
-     eventSource.onmessage = (event) => {
-       const message = JSON.parse(event.data);
-       if (message.type === 'progress') {
-         // Cập nhật thanh tiến trình % tương ứng trên UI
-         updateProgress(message.fileIndex, message.completed, message.total);
-       } else if (message.type === 'batch_done') {
-         eventSource.close(); // Đóng kết nối an toàn khi hoàn thành
-       }
-     };
-     ```
+   - **FE nhận và xử lý (Consume)**: FE sử dụng API Native `EventSource` của trình duyệt để lắng nghe sự kiện phát ra từ BE. Lưu ý: Do NestJS `@Sse()` tự động đóng gói dữ liệu phản hồi vào một thuộc tính `data` lồng nhau (nested JSON), ta cần bóc tách `raw.data || raw` để đảm bảo tương thích:
+      ```javascript
+      const eventSource = new EventSource(`http://localhost:3000/extract-tables/${batchId}/stream`);
+      eventSource.onmessage = (event) => {
+        const raw = JSON.parse(event.data);
+        // Bóc tách dữ liệu lồng từ NestJS SSE
+        const message = raw.data || raw;
+        
+        if (message.type === 'progress') {
+          // Cập nhật thanh tiến trình % tương ứng trên UI
+          updateProgress(message.fileIndex, message.completed, message.total);
+        } else if (message.type === 'batch_done') {
+          eventSource.close(); // Đóng kết nối an toàn khi hoàn thành
+        }
+      };
+      ```
    - FE nhận sự kiện SSE, cập nhật giao diện thanh tiến trình (progress bar) tương ứng với từng file.
 
 3. **Huỷ Tác vụ Chủ động (Action Cancel)**:
