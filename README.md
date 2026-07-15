@@ -56,9 +56,9 @@ GOOGLE_LOCATION=us # Hoặc location của Document AI Processor
 GOOGLE_PROCESSOR_ID=your-document-ai-processor-id
 
 # Cấu hình OCR & Concurrency
-OCR_RETRY_ATTEMPTS=5           # Số lần thử lại tối đa cho Vision API
-OCR_JOB_TIMEOUT=600000         # Thời gian tối đa cho 1 Job (ms)
-OCR_CLEANUP_TTL_MS=3600000     # Thời gian chờ trước khi dọn dẹp workspace (ms)
+JOB_RETRY_ATTEMPTS=5           # Số lần thử lại tối đa cho GCP API
+JOB_TIMEOUT=600000             # Thời gian tối đa cho 1 Job (ms)
+JOB_CLEANUP_TTL_MS=3600000     # Thời gian chờ trước khi dọn dẹp workspace (ms)
 MAX_PDF_PAGES=2000             # Giới hạn số trang tối đa cho 1 file PDF
 MAX_UPLOAD_SIZE=52428800       # Giới hạn kích thước file upload (50MB)
 

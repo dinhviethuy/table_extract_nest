@@ -98,9 +98,9 @@ GOOGLE_LOCATION=us
 GOOGLE_PROCESSOR_ID=your-processor-id
 
 # Cấu hình tham số OCR
-OCR_RETRY_ATTEMPTS=5           # Số lần thử lại tối đa khi Google API lỗi
-OCR_JOB_TIMEOUT=600000         # Thời gian chạy tối đa cho 1 Job (10 phút)
-OCR_CLEANUP_TTL_MS=3600000     # Thời gian giữ lại workspace trước khi xoá (1 giờ)
+JOB_RETRY_ATTEMPTS=5           # Số lần thử lại tối đa khi Google API lỗi
+JOB_TIMEOUT=600000             # Thời gian chạy tối đa cho 1 Job (10 phút)
+JOB_CLEANUP_TTL_MS=3600000     # Thời gian giữ lại workspace trước khi xoá (1 giờ)
 MAX_PDF_PAGES=2000             # Giới hạn số trang tối đa của PDF
 MAX_UPLOAD_SIZE=52428800       # Kích thước file tối đa cho phép upload (50MB)
 

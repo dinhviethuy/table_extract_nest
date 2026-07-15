@@ -70,7 +70,7 @@ sequenceDiagram
 Để tránh tắc nghẽn hàng đợi chính, các tác vụ được phân bổ độc lập cho cả luồng OCR và Trích xuất bảng:
 - `ocr-convert` & `table-convert`: Concurrency được giới hạn riêng bởi `LIBREOFFICE_CONCURRENCY`. Lỗi chuyển đổi Word không gây nghẽn luồng xử lý ảnh/PDF.
 - `ocr-process` & `table-process`: Phụ trách render trang PDF/Ảnh và thực hiện nhận diện Vision OCR hoặc trích xuất Document AI. Xử lý nhiều tài liệu cùng lúc qua `PROCESS_WORKER_CONCURRENCY`.
-- `ocr-cleanup` & `table-cleanup`: Tác vụ chạy ngầm giải phóng dung lượng đĩa cứng bằng cách xoá thư mục workspace của Job sau thời gian chờ `OCR_CLEANUP_TTL_MS`.
+- `ocr-cleanup` & `table-cleanup`: Tác vụ chạy ngầm giải phóng dung lượng đĩa cứng bằng cách xoá thư mục workspace của Job sau thời gian chờ `JOB_CLEANUP_TTL_MS`.
 
 ### 2. Tách Biệt Bộ Lưu Trữ Kết Quả (Decoupled ResultStorage)
 - **Vấn đề**: Lưu kết quả OCR nặng hoặc cấu trúc bảng biểu phức tạp khổng lồ (>10MB đối với các PDF hàng trăm trang) trực tiếp vào Redis sẽ làm nghẽn I/O Redis, tăng tiêu thụ RAM và gây sập dịch vụ.
