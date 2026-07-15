@@ -2,6 +2,9 @@
 
 Hệ thống Backend được xây dựng bằng NestJS phục vụ việc trích xuất bảng biểu (Table Extraction) và nhận diện văn bản (OCR) quy mô lớn, hỗ trợ xử lý bất đồng bộ (Asynchronous) qua hàng đợi BullMQ + Redis, điều phối tài nguyên thông minh và hỗ trợ phân trang tối ưu hiệu năng.
 
+- 📖 Xem [Tài liệu Kiến trúc Hệ thống](file:///d:/Programing/Tool/tool/table_extractor_api_nest/table_extract/docs/architecture.md)
+- ⚙️ Xem [Tài liệu Luồng Chạy Chi Tiết (Pipeline Flow)](file:///d:/Programing/Tool/tool/table_extractor_api_nest/table_extract/docs/pipeline-flow.md)
+
 ---
 
 ## 🚀 Các Tính Năng Nổi Bật (Cập Nhật Phiên Bản Production-Ready)
