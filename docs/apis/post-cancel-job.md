@@ -25,7 +25,7 @@ API này nhận yêu cầu huỷ bỏ xử lý một Job cụ thể đang trong 
    - `JobStoreService` đánh dấu trạng thái huỷ (`cancellationFlag: true`) của Job tương ứng trong Redis.
 2. **Kiểm tra trạng thái hàng đợi**:
    - Nếu Job đang chờ xử lý (`waiting`), BullMQ sẽ loại bỏ Job ra khỏi hàng đợi.
-   - Nếu Job đang chạy (`active`), Worker Processor (`OcrProcessor` hoặc `TableProcessor`) sẽ nhận biết cờ huỷ này trước/sau mỗi lượt xử lý hoặc gọi API của từng trang đơn lẻ.
+   - Nếu Job đang chạy (`active`), Worker Processor (`ProcessProcessor` hoặc `TableProcessProcessor`) sẽ nhận biết cờ huỷ này trước/sau mỗi lượt xử lý hoặc gọi API của từng trang đơn lẻ.
 3. **Giải phóng tài nguyên ngầm**:
    - Worker dừng xử lý ngay lập tức khi phát hiện cờ huỷ.
    - Xoá sạch toàn bộ tệp tạm, tệp ảnh PNG kết xuất từ PDF, và file kết quả JSONL tạm thời của lượt chạy (`attemptToken`).
