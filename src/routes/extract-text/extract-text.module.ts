@@ -4,9 +4,9 @@ import { existsSync, mkdirSync } from 'fs'
 import multer from 'multer'
 import { UPLOAD_DIR } from '../../shared/constants/other.constant'
 import { generateRandomFilename } from '../../shared/utils/helper'
-import { ExtractTablesController } from './extract-tables.controller'
-import { ExtractTablesService } from './extract-tables.service'
-import { TableQueueModule } from '../../queues/table-extraction/table-queue.module'
+import { ExtractTextController } from './extract-text.controller'
+import { ExtractTextService } from './extract-text.service'
+import { OcrQueueModule } from '../../queues/ocr/ocr-queue.module'
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -23,12 +23,12 @@ const storage = multer.diskStorage({
     MulterModule.register({
       storage,
     }),
-    TableQueueModule,
+    OcrQueueModule,
   ],
-  controllers: [ExtractTablesController],
-  providers: [ExtractTablesService],
+  controllers: [ExtractTextController],
+  providers: [ExtractTextService],
 })
-export class ExtractTablesModule {
+export class ExtractTextModule {
   constructor() {
     if (!existsSync(UPLOAD_DIR)) {
       mkdirSync(UPLOAD_DIR, { recursive: true })

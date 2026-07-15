@@ -1,131 +1,149 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
-import * as fs from 'fs/promises'
-import path from 'path'
-import { PDFDocument } from 'pdf-lib'
-import sharp from 'sharp'
+import { InjectQueue } from '@nestjs/bullmq'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { Queue } from 'bullmq'
 import { v4 as uuidv4 } from 'uuid'
-import { DocumentAiService } from '../../shared/services/document-ai.service'
-import { convertToPdf } from '../../shared/utils/helper'
-import { ExtractionResponseSchemaType } from './extract-tables.schema'
+import { JobStoreService } from '../../shared/services/job-store.service'
+import { TableBatchFileMetadata, TableBatchMetadata } from './extract-tables.interface'
+import { TableJobData } from '../../queues/table-extraction/table-extraction.interface'
+import { TABLE_QUEUE_NAME } from '../../shared/constants/ocr.constant'
+import envConfig from '../../shared/configs/env'
 
 @Injectable()
 export class ExtractTablesService {
-  constructor(private readonly documentAiService: DocumentAiService) {}
-  private async processFile(file: Express.Multer.File) {
-    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
-    let ext = path.extname(originalName).replace('.', '').toLowerCase()
-    const fileName = path.parse(originalName).name
-    let fileBuffer = file.buffer
-    const isDiskStorage = !fileBuffer && !!file.path
-    try {
-      if (isDiskStorage) {
-        fileBuffer = await fs.readFile(file.path)
-      }
-      if (['doc', 'docx'].includes(ext)) {
-        const tempDir = path.join(process.cwd(), 'temp')
-        await fs.mkdir(tempDir, {
-          recursive: true,
-        })
-        const id = uuidv4()
-        const docxPath = path.join(tempDir, `${id}.${ext}`)
-        const pdfPath = path.join(tempDir, `${id}.pdf`)
-        try {
-          await fs.writeFile(docxPath, fileBuffer)
-          await convertToPdf({
-            docxPath,
-            pdfPath,
-          })
-          fileBuffer = await fs.readFile(pdfPath)
-          ext = 'pdf'
-        } finally {
-          await fs.rm(docxPath, { force: true })
-          await fs.rm(pdfPath, { force: true })
-        }
-      }
+  constructor(
+    @InjectQueue(TABLE_QUEUE_NAME) private readonly tableQueue: Queue,
+    private readonly jobStoreService: JobStoreService,
+  ) {}
 
-      const pagesPdfBytes: Buffer[] = []
-      let totalPages = 0
-      if (ext === 'pdf') {
-        const pdf = await PDFDocument.load(fileBuffer)
-        totalPages = pdf.getPageCount()
-        for (let i = 0; i < totalPages; i++) {
-          const newPdf = await PDFDocument.create()
-          const [page] = await newPdf.copyPages(pdf, [i])
-          newPdf.addPage(page)
-          const bytes = await newPdf.save()
-          pagesPdfBytes.push(Buffer.from(bytes))
-        }
-      } else if (['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff'].includes(ext)) {
-        totalPages = 1
-        const image = sharp(fileBuffer)
-        const metadata = await image.metadata()
-        const width = metadata.width ?? 600
-        const height = metadata.height ?? 800
-
-        const pngBuffer = await image.png().toBuffer()
-
-        const pdfDoc = await PDFDocument.create()
-        const page = pdfDoc.addPage([width, height])
-        const embeddedImage = await pdfDoc.embedPng(pngBuffer)
-
-        page.drawImage(embeddedImage, {
-          x: 0,
-          y: 0,
-          width: width,
-          height: height,
-        })
-
-        const pdfBytes = await pdfDoc.save()
-        pagesPdfBytes.push(Buffer.from(pdfBytes))
-      } else {
-        return {
-          fileName,
-          pagesPdfBytes,
-        }
-      }
-      if (pagesPdfBytes.length === 0) {
-        throw new BadRequestException('Không tìm thấy nội dung hợp lệ trong file. Vui lòng upload lại file.')
-      }
-      return {
-        fileName,
-        pagesPdfBytes,
-        totalPages,
-      }
-    } finally {
-      if (isDiskStorage) {
-        await fs.rm(file.path, { force: true }).catch(() => {})
-      }
-    }
-  }
-
-  async extractTable(files: Array<Express.Multer.File>): Promise<ExtractionResponseSchemaType> {
+  async createBatch(files: Array<Express.Multer.File>): Promise<{ batchId: string; files: TableBatchFileMetadata[] }> {
     if (!files?.length) {
       throw new BadRequestException('Không có file nào được upload')
     }
-    try {
-      const { fileName, pagesPdfBytes, totalPages } = await this.processFile(files[0])
-      const tasks = pagesPdfBytes.map((pagePdf, index) =>
-        this.documentAiService.extractTableFromPage({
-          file_bytes: pagePdf,
-          pageIndex: index,
-          mimeType: 'application/pdf',
-        }),
-      )
 
-      const completedPages = await Promise.all(tasks)
-      completedPages.sort((a, b) => a.pageNumber - b.pageNumber)
-      const filteredPages = completedPages.filter((page) => page.tables.length > 0 || page.error !== undefined)
-      return {
-        documentName: fileName,
-        pages: filteredPages,
-        totalPages: totalPages ?? 0,
+    const batchId = uuidv4()
+    const filesMetadata: TableBatchFileMetadata[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const jobId = `${batchId}_${i}`
+      const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
+      
+      const jobData: TableJobData = {
+        batchId,
+        fileIndex: i,
+        fileName: originalName,
+        filePath: file.path,
+        mimeType: file.mimetype,
+        totalPages: 0, // Computed by worker
       }
-    } finally {
-      for (const file of files) {
-        if (file.path) {
-          await fs.rm(file.path, { force: true }).catch(() => {})
+
+      await this.tableQueue.add('table-job', jobData, {
+        jobId,
+        attempts: envConfig.OCR_MAX_RETRIES,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        removeOnComplete: { age: 3600 },
+        removeOnFail: { age: 86400 },
+      })
+
+      filesMetadata.push({
+        fileIndex: i,
+        jobId,
+        fileName: originalName,
+        totalPages: 0,
+        status: 'waiting',
+      })
+    }
+
+    const batchMetadata: TableBatchMetadata = {
+      batchId,
+      createdAt: new Date().toISOString(),
+      files: filesMetadata,
+    }
+
+    await this.jobStoreService.saveTableBatch(batchId, batchMetadata)
+
+    return {
+      batchId,
+      files: filesMetadata,
+    }
+  }
+
+  async getBatchStatus(batchId: string): Promise<any> {
+    const batch = await this.jobStoreService.getTableBatch(batchId)
+    if (!batch) {
+      throw new NotFoundException(`Không tìm thấy lô trích xuất bảng với ID: ${batchId}`)
+    }
+
+    let completedFilesCount = 0
+    const filesResults = await Promise.all(
+      batch.files.map(async (fileMeta) => {
+        const jobStatus = await this.jobStoreService.getTableJobStatus(fileMeta.jobId)
+        
+        let status = jobStatus.status
+        if (status === 'unknown') {
+          status = fileMeta.status as any
         }
+        if (status === 'completed') {
+          completedFilesCount++
+        }
+
+        const totalPages = jobStatus.progress.total || fileMeta.totalPages
+        const tablePageNumbers = status === 'completed'
+          ? jobStatus.pages.map((p) => p.pageNumber)
+          : []
+
+        return {
+          fileIndex: fileMeta.fileIndex,
+          jobId: fileMeta.jobId,
+          fileName: fileMeta.fileName,
+          status,
+          totalPages,
+          completedPages: jobStatus.progress.completed,
+          pages: [], // Clear pages list to save bandwidth, lazy loaded on request
+          tablePageNumbers,
+          failedReason: jobStatus.failedReason,
+        }
+      })
+    )
+
+    let batchStatus = 'processing'
+    if (completedFilesCount === batch.files.length) {
+      batchStatus = 'completed'
+    } else if (filesResults.some((f) => f.status === 'failed')) {
+      const finishedOrFailed = filesResults.filter((f) => f.status === 'completed' || f.status === 'failed').length
+      if (finishedOrFailed === batch.files.length) {
+        batchStatus = 'failed'
+      }
+    } else if (filesResults.every((f) => f.status === 'waiting')) {
+      batchStatus = 'waiting'
+    }
+
+    return {
+      batchId,
+      status: batchStatus,
+      totalFiles: batch.files.length,
+      completedFiles: completedFilesCount,
+      files: filesResults,
+    }
+  }
+
+  async getPageDetail(batchId: string, fileIndex: number, pageNumber: number): Promise<any> {
+    const jobStatus = await this.jobStoreService.getTableJobStatus(`${batchId}_${fileIndex}`)
+    if (jobStatus.status === 'unknown') {
+      throw new NotFoundException(`Không tìm thấy tiến trình xử lý cho fileIndex: ${fileIndex}`)
+    }
+
+    const page = jobStatus.pages.find((p) => p.pageNumber === pageNumber)
+    if (!page) {
+      return {
+        pageNumber,
+        tables: [],
       }
     }
+
+    return page
   }
 }
