@@ -3,18 +3,43 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Queue } from 'bullmq'
 import { Observable } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
+import * as fs from 'fs/promises'
+import * as path from 'path'
 import { JobStoreService } from '../../shared/services/job-store.service'
 import { BatchFileMetadata, BatchMetadata } from './extract-text.interface'
-import { OcrJobData } from '../../queues/ocr/ocr.interface'
-import { OCR_QUEUE_NAME } from '../../shared/constants/ocr.constant'
+import { OcrJobData, JobState } from '../../queues/ocr/ocr.interface'
+import {
+  OCR_QUEUE_NAME,
+  OCR_CONVERT_QUEUE_NAME,
+  OCR_PROCESS_QUEUE_NAME,
+} from '../../shared/constants/ocr.constant'
 import envConfig from '../../shared/configs/env'
 
 @Injectable()
 export class ExtractTextService {
   constructor(
     @InjectQueue(OCR_QUEUE_NAME) private readonly ocrQueue: Queue,
+    @InjectQueue(OCR_CONVERT_QUEUE_NAME) private readonly convertQueue: Queue,
+    @InjectQueue(OCR_PROCESS_QUEUE_NAME) private readonly processQueue: Queue,
     private readonly jobStoreService: JobStoreService,
   ) {}
+
+  private sanitizeFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+  }
+
+  private async moveFile(src: string, dest: string) {
+    try {
+      await fs.rename(src, dest)
+    } catch (err: any) {
+      if (err.code === 'EXDEV') {
+        await fs.copyFile(src, dest)
+        await fs.unlink(src).catch(() => {})
+      } else {
+        throw err
+      }
+    }
+  }
 
   async createBatch(files: Array<Express.Multer.File>): Promise<{ batchId: string; files: BatchFileMetadata[] }> {
     if (!files?.length) {
@@ -28,26 +53,57 @@ export class ExtractTextService {
       const file = files[i]
       const jobId = `${batchId}_${i}`
       const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
-      
+      const sanitizedName = this.sanitizeFilename(originalName)
+
+      // Create unique folder for the job
+      const jobDir = path.resolve(envConfig.TEMP_DIRECTORY, jobId)
+      await fs.mkdir(jobDir, { recursive: true })
+
+      const ext = path.extname(sanitizedName)
+      const targetFilePath = path.join(jobDir, `original${ext}`)
+
+      // Move Multer temp file to permanent job workspace
+      await this.moveFile(file.path, targetFilePath)
+
       const jobData: OcrJobData = {
         batchId,
         fileIndex: i,
         fileName: originalName,
-        filePath: file.path,
+        filePath: targetFilePath,
         mimeType: file.mimetype,
         totalPages: 0,
       }
 
-      await this.ocrQueue.add('ocr-job', jobData, {
-        jobId,
-        attempts: envConfig.OCR_MAX_RETRIES,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-        removeOnComplete: { age: 3600 },
-        removeOnFail: { age: 86400 },
+      // Initialize status in Redis
+      await this.jobStoreService.saveOcrJobStatus(jobId, {
+        status: JobState.QUEUED,
+        progress: { completed: 0, total: 100 },
+        createdAt: new Date().toISOString(),
       })
+
+      const isWord = ['.doc', '.docx'].includes(ext.toLowerCase())
+
+      if (isWord) {
+        // Enqueue to convert queue
+        await this.convertQueue.add('ocr-convert-job', jobData, {
+          jobId,
+          attempts: 1,
+          removeOnComplete: { age: 3600 },
+          removeOnFail: { age: 86400 },
+        })
+      } else {
+        // Enqueue to process queue directly
+        await this.processQueue.add('ocr-process-job', jobData, {
+          jobId,
+          attempts: envConfig.OCR_RETRY_ATTEMPTS,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: { age: 3600 },
+          removeOnFail: { age: 86400 },
+        })
+      }
 
       filesMetadata.push({
         fileIndex: i,
@@ -196,7 +252,7 @@ export class ExtractTextService {
   }
 
   /**
-   * Streams batch progress using Server-Sent Events (SSE)
+   * Truyền tiến độ của lô thời gian thực sử dụng Server-Sent Events (SSE)
    */
   streamBatchProgress(batchId: string): Observable<any> {
     return new Observable((subscriber) => {
@@ -206,7 +262,7 @@ export class ExtractTextService {
         try {
           const batch = await this.jobStoreService.getBatch(batchId)
           if (!batch) {
-            subscriber.next({ data: { type: 'error', message: 'Batch not found' } })
+            subscriber.next({ data: { type: 'error', message: 'Không tìm thấy lô batch này' } })
             subscriber.complete()
             return true
           }

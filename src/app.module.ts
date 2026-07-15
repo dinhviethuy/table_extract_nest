@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { BullModule } from '@nestjs/bullmq'
+import { BullBoardModule } from '@bull-board/nestjs'
+import { ExpressAdapter } from '@bull-board/express'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { ExtractTablesModule } from './routes/extract-tables/extract-tables.module'
@@ -18,6 +20,10 @@ import envConfig from './shared/configs/env'
         host: envConfig.REDIS_HOST,
         port: envConfig.REDIS_PORT,
       },
+    }),
+    BullBoardModule.forRoot({
+      route: '/admin/queues',
+      adapter: ExpressAdapter,
     }),
     SharedModule,
     ExtractTablesModule,

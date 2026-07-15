@@ -52,17 +52,26 @@ docker run -d \
 
 ---
 
-## 📝 3. LibreOffice (Hỗ Trợ Chuyển Đổi Word DOCX)
+## 📄 3. Cài Đặt Poppler PDF Tools
 
-Hệ thống sử dụng LibreOffice thông qua CLI để chuyển đổi tệp Word (.doc, .docx) thành PDF trước khi chuyển qua Google Document AI.
+Hệ thống xử lý PDF page-by-page thông qua các công cụ `pdfinfo` và `pdftoppm` của Poppler.
+
+1. Tải bản Poppler cho Windows.
+2. Giải nén và đặt các tệp thực thi `pdfinfo.exe` và `pdftoppm.exe` vào đúng thư mục sau trong dự án:
+   `Release-26.02.0-0/poppler-26.02.0/Library/bin/`
+3. Đảm bảo các tệp tin này có quyền thực thi và được gọi đúng bởi backend NestJS.
+
+---
+
+## 📝 4. LibreOffice (Hỗ Trợ Chuyển Đổi Word DOCX)
+
+Hệ thống sử dụng LibreOffice thông qua CLI để chuyển đổi tệp Word (.doc, .docx) thành PDF trước khi chuyển qua xử lý OCR hoặc Document AI.
 
 ### Thiết lập trên Windows:
 1. Tải và cài đặt LibreOffice từ trang chủ [LibreOffice Download](https://www.libreoffice.org/download/download/).
-2. Thêm thư mục chứa file thi hành (`soffice.exe`) vào biến môi trường **PATH** của hệ thống (mặc định là `C:\Program Files\LibreOffice\program`).
-3. Khởi động lại terminal để cập nhật PATH. Kiểm tra xem lệnh sau có chạy được không:
-   ```cmd
-   soffice --version
-   ```
+2. Đảm bảo thư mục chứa file thi hành (`soffice.exe`) được đặt ở đường dẫn cài đặt mặc định:
+   `C:\Program Files\LibreOffice\program\soffice.exe`
+   Hoặc thêm thư mục trên vào biến môi trường **PATH** của hệ thống.
 
 ### Thiết lập trên Linux (Ubuntu/Debian):
 ```bash
@@ -72,9 +81,9 @@ sudo apt install libreoffice -y
 
 ---
 
-## 📝 4. Cấu Hình Tệp `.env`
+## 📝 5. Cấu Hìn Tệp `.env`
 
-Tạo tệp `.env` tại thư mục gốc backend (`table_extract/.env`) với nội dung tham khảo sau:
+Tạo tệp `.env` tại thư mục gốc backend (`table_extract/.env`) với nội dung cấu hình đầy đủ sau:
 
 ```env
 PORT=3000
@@ -83,13 +92,20 @@ PORT=3000
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# GCP Project (Document AI)
-GOOGLE_PROJECT_ID=table-extractor-12345
+# GCP Project Config
+GOOGLE_PROJECT_ID=your-gcp-project-id
 GOOGLE_LOCATION=us
-GOOGLE_PROCESSOR_ID=8c9b88999888777a
+GOOGLE_PROCESSOR_ID=your-processor-id
 
-# Cấu hình giới hạn hiệu năng & hàng đợi
-OCR_MAX_CONCURRENCY=5             # Giới hạn số luồng xử lý trang đồng thời của 1 tệp tin
-OCR_MAX_RETRIES=3                 # Số lần thử lại nếu Google API báo lỗi tạm thời
-GLOBAL_CONCURRENCY_LIMIT=10        # Giới hạn request song song toàn hệ thống để bảo vệ quota
+# Cấu hình tham số OCR
+OCR_RETRY_ATTEMPTS=5           # Số lần thử lại tối đa khi Google API lỗi
+OCR_JOB_TIMEOUT=600000         # Thời gian chạy tối đa cho 1 Job (10 phút)
+OCR_CLEANUP_TTL_MS=3600000     # Thời gian giữ lại workspace trước khi xoá (1 giờ)
+MAX_PDF_PAGES=2000             # Giới hạn số trang tối đa của PDF
+MAX_UPLOAD_SIZE=52428800       # Kích thước file tối đa cho phép upload (50MB)
+
+# Concurrency tuning
+LIBREOFFICE_CONCURRENCY=2      # Số tệp Word chuyển đổi song song
+PROCESS_WORKER_CONCURRENCY=2   # Số job OCR xử lý song song
+VISION_CONCURRENCY=5           # Số luồng quét trang song song trên mỗi PDF
 ```

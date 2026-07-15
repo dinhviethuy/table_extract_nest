@@ -7,6 +7,7 @@ import {
   TableSchema,
   TableBatchResponseSchema,
   TableBatchStatusSchema,
+  TableFileResultSchema,
 } from './extract-tables.schema'
 
 export class ExtractionResponseDto extends createZodDto(ExtractionResponseSchema) {}
@@ -16,4 +17,4 @@ export class RowDto extends createZodDto(RowSchema) {}
 export class CellDto extends createZodDto(CellSchema) {}
 export class TableBatchResponseDto extends createZodDto(TableBatchResponseSchema) {}
 export class TableBatchStatusDto extends createZodDto(TableBatchStatusSchema) {}
-
+export class TableFileResultDto extends createZodDto(TableFileResultSchema) {}

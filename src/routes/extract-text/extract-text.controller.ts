@@ -26,6 +26,7 @@ import {
 import { ExtractTextService } from './extract-text.service'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
+import envConfig from '../../shared/configs/env'
 
 @Controller('extract-text')
 export class ExtractTextController {
@@ -39,7 +40,7 @@ export class ExtractTextController {
     @UploadedFiles(
       new ParseFilePipeWithUnlink({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB upload limit
+          new MaxFileSizeValidator({ maxSize: envConfig.MAX_UPLOAD_SIZE }), // config-driven upload limit
           new CustomFileTypeValidator({ fileType: /(jpg|jpeg|png|webp|bmp|tiff|pdf|msword|word|document)$/i }),
         ],
       }),
